@@ -13,3 +13,16 @@ nums <- input %>%
 
 # answer
 nums[1]*nums[2]
+
+# which 3 numbers add up to 2020?
+nums <- input %>% 
+  as_tibble() %>% 
+  mutate(V2 = V1) %>% 
+  mutate(V3 = V1) %>% 
+  expand(V1, V2, V3) %>%
+  filter(V1+V2+V3 == 2020) %>%
+  magrittr::use_series(V1) %>% 
+  unique()
+
+# answer
+nums[1]*nums[2]*nums[3]
