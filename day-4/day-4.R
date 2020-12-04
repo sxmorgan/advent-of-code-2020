@@ -22,6 +22,9 @@ data <- input %>%
     magrittr::extract2(1) %>%
     as_tibble() %>%
     mutate_at(vars(value), ~ str_replace_all(., '\n', ' ')) %>%
+    mutate(num.fields = str_count(value, ':')) %>%
+    filter(num.fields >= 7) %>%
+    select(-num.fields) %>%
     separate(value, ' ', into = paste0('X', seq_len(8))) %>%
     add_column(ID = paste0('E', seq_len(nrow(.))), .before = 1) %>%
     gather('var', 'value', -ID) %>%
@@ -29,13 +32,12 @@ data <- input %>%
     arrange(ID, value) %>%
     select(-var) %>% 
     separate(value, c('field.name', 'value'), '[:]') %>%
-    spread('field.name','value') %>%
-    select(-V1)
+    spread('field.name','value') 
 
 data %>%
-    mutate(byr = ifelse(byr >= 1920 & byr <= 2002, TRUE, FALSE)) %>%
-    mutate(iyr = ifelse(iyr >= 2010 & iyr <= 2020, TRUE, FALSE)) %>%
-    mutate(eyr = ifelse(eyr >= 2020 & eyr <= 2030, TRUE, FALSE)) %>%
+    mutate(byr = ifelse((byr >= 1920 & byr <= 2002 &!is.na(byr)) , TRUE, FALSE)) %>%
+    mutate(iyr = ifelse(iyr >= 2010 & iyr <= 2020 &!is.na(iyr), TRUE, FALSE)) %>%
+    mutate(eyr = ifelse(eyr >= 2020 & eyr <= 2030 &!is.na(eyr), TRUE, FALSE)) %>%
     mutate(unit = str_extract(hgt,'[a-z]')) %>%
     mutate(hgt = str_remove_all(hgt, '[a-z]')) %>%
     mutate(hgt = case_when(is.na(unit) ~ FALSE,
@@ -44,6 +46,7 @@ data %>%
                            (unit=='c' & hgt<150) | (unit=='c' & hgt>193) ~ FALSE,
                            (unit=='i' & hgt<59) | (unit=='i' & hgt>76) ~ FALSE)) %>%
     select(-unit) %>%
+    filter(!is.na(hcl) & !is.na(ecl) & !is.na(pid)) %>%
     mutate(hcl = str_detect(hcl, '[#][0-9a-zA-Z]')) %>%
     mutate(ecl = ifelse(ecl %in% c('amb','blu','brn','gry','grn','hzl','oth'),
                         TRUE, FALSE)) %>%
@@ -53,3 +56,4 @@ data %>%
     filter(valid == 7)
 
 # first answer 117 = wrong
+# still wrong ... 
