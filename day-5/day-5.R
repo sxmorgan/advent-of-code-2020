@@ -36,3 +36,14 @@ max(seat.ids)
 # part 2 not 210
 possible <- seq(min(seat.ids), max(seat.ids), 1)
 seat.ids[which(!(possible %in% seat.ids))]
+
+# anew
+locate <- tibble('seat.ids' = seat.ids,
+                 'rows' = as.numeric(rows),
+                 'cols' = as.numeric(cols)) %>% 
+  arrange(rows, cols) %>% 
+  filter((rows > min(rows)) & (rows < max(rows))) %>% 
+  nest(data = -rows) %>%
+  mutate(full = map_lgl(data, ~ ifelse(nrow(.) == 8, TRUE, FALSE))) %>% 
+  unnest(data) %>%
+  filter(!full) # %>% deduce() ;)
