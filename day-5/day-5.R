@@ -25,9 +25,14 @@ decode.seat.col <- function(str) {
 }
 
 calc.seat.id <- function(row, col) { (row*8)+col }
-  
+
 rows <- map(input, ~ decode.seat.row(.))
 cols <- map(input, ~ decode.seat.col(.))
 
 # what is the highest seat ID?
-max(map2_dbl(rows, cols, ~ calc.seat.id(.x, .y)))
+seat.ids <- map2_dbl(rows, cols, ~ calc.seat.id(.x, .y))
+max(seat.ids)
+
+# part 2 not 210
+possible <- seq(min(seat.ids), max(seat.ids), 1)
+seat.ids[which(!(possible %in% seat.ids))]
