@@ -33,7 +33,8 @@ data <- input %>%
     arrange(ID, value) %>%
     separate(value, c('field.name', 'value'), '[:]') %>%
     filter(!str_detect(field.name, 'cid')) %>%
-    spread('field.name','value')
+    spread('field.name','value') %>%
+    select(-V1) #where from?
 
 # data is 230 x 8
 check <- data %>%
@@ -55,21 +56,38 @@ check <- data %>%
     mutate(valid = rowSums(.[,2:8])) %>%
     filter(valid == 7)
 
-# still 117, still wrong ... 
-check <- data %>%
-    filter(byr >= 1920 & byr <= 2002 & !is.na(byr)) %>% #176
-    filter(iyr >= 2010 & iyr <= 2020 & !is.na(iyr)) %>% #149
-    filter(eyr >= 2020 & eyr <= 2030 & !is.na(eyr)) %>% #137
-    mutate(unit = str_extract(hgt,'[a-z]')) %>%
-    mutate(hgt = str_remove_all(hgt, '[cmin]')) %>%
-    mutate(hgt = case_when(is.na(unit) ~ FALSE,
-                           unit=='c' & hgt>=150 & hgt<=193 ~ TRUE,
-                           unit=='i' & hgt>=59 & hgt<=76 ~ TRUE, 
-                           (unit=='c' & hgt<150) | (unit=='c' & hgt>193) ~ FALSE,
-                           (unit=='i' & hgt<59) | (unit=='i' & hgt>76) ~ FALSE)) %>%
-    filter(hgt) %>% #132
-    select(-unit) %>%
-    filter(!is.na(hcl) & !is.na(ecl) & !is.na(pid)) %>% #125
-    filter(str_detect(hcl, '[#][0-9a-f]{6}')) %>% #125
-    filter(ecl %in% c('amb','blu','brn','gry','grn','hzl','oth')) %>% #120
-    filter(str_detect(pid, '[0-9]{9}')) 
+# from https://colinfay.me/aoc-2020-04/
+ipt <- readLines("~/Desktop/advent-of-code-20/day-4/input.txt" ) %>% 
+    paste(collapse = "\n") %>% 
+    strsplit("\n\n") %>% 
+    .[[1]] %>%
+    gsub("\n", " ", .)
+
+library(purrr, warn.conflicts = FALSE)
+
+is_north_pole_valid <- function(x, patt = c("byr","iyr","eyr", 
+                                            "hgt", "hcl", "ecl", "pid")) {
+    map_lgl(patt, ~ grepl(.x, x)) %>% all()
+}
+
+ipt %>%
+    discard(~ !is_north_pole_valid(.x)) %>%
+    strsplit(" ") %>%
+    map_dbl(~{
+        vals <- map_chr(.x, ~ gsub("([^:]*):(.*)", "\\2", .x)) 
+        names(vals) <- map_chr(.x, ~ gsub("([^:]*):(.*)", "\\1", .x)) 
+        
+        if (! dplyr::between(vals["byr"], 1920, 2002) ) return(0)
+        if (! dplyr::between(vals["iyr"], 2010, 2020) ) return(0)
+        if (! dplyr::between(vals["eyr"], 2020, 2030) ) return(0)
+        if ( grepl("in", vals["hgt"]) ) {
+            if (! dplyr::between(gsub("in", "", vals["hgt"]), 59, 76)) return(0)
+        } else if (grepl("cm", vals["hgt"])) {
+            if (! dplyr::between(gsub("cm", "", vals["hgt"]), 150, 193)) return(0)
+        } else {
+            return(0) }
+        if (! grepl("^#[a-f0-9]{6}$", vals["hcl"])) return(0)
+        if (! vals["ecl"] %in% c("amb","blu", "brn", "gry", "grn","hzl", "oth")) return(0)
+        if (! grepl("^[0-9]{9}$", vals["pid"])) return(0)
+        return(1) }
+    ) %>% sum()
