@@ -2,14 +2,16 @@ library(tidyverse)
 library(magrittr)
 library(here)
 
-input <- here('day-7','input.txt') %>%
+# input <- here('day-7','input.txt') %>%
+input <- '~/Desktop/advent-of-code-20/day-7/input.txt' %>%
     read_delim(delim = '.\n', col_names = FALSE) %>%
     select(-X2) %>%
     mutate(X1 = str_split(X1, fixed('contain'))) %>%
     mutate(X1 = map(X1, ~ tibble('outer.bag' = .[1], 
                                  'contents' = .[2]))) %>%
     unnest(X1) %>%
-    mutate_all(~ trimws(., 'both'))
+    mutate_at(vars(outer.bag), ~ str_remove_all(., fixed('bags'))) %>%
+    mutate_all(~ trimws(., 'both')) 
 
 input.test <- slice(input, 1:100)
 
@@ -41,7 +43,7 @@ find.bags <- function(df, pattern) {
     else { 
         # doesn't appear to be doing anything.
         df %<>%
-            filter(!(outer.bag %in% possible.bags))
+            filter(!(outer.bag %in% bags.glob) & !(outer.bag %in% possible.bags))
         print(paste(possible.bags, sep = ' '))
         for (i in seq_along(possible.bags)) {
             if (!(possible.bags[i] %in% bags.glob)) {
@@ -53,6 +55,12 @@ find.bags <- function(df, pattern) {
 bags.glob <<- vector()
 find.bags(input, 'shiny gold bag')
 length(unique(bags.glob))
+
+# double check
+empty.bags <- input %>%
+    filter(str_detect(contents, fixed('no other bags'))) %>%
+    pull(outer.bag)
+empty.bags %in% bags.glob # all FALSE
 
 # 114 too low, 115 too...
 # 60, 68, 78, 56, 192 are also wrong FUCK IT HAS TO BE 114
