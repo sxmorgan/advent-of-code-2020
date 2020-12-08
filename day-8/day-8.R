@@ -11,8 +11,17 @@ clean.input <- function(filename) {
 # part 1
 complete.step <- function(df, idx) {
 
+  # steps been completed already
   if (df$exec[idx]) {
-    browser()
+    print('infinite loop condition reached')
+    print(paste0('acc.sum = ', acc.sum))
+    return() }
+  
+  # end of program reached
+  else if (idx == nrow(df)) {
+    print('end of program reached')
+    if (df$command[idx] == 'acc') { acc.sum <<- acc.sum + df$inc[idx] }
+    print(paste0('acc.sum = ', acc.sum))
     return(acc.sum) }
   
   else {
@@ -34,3 +43,38 @@ input %<>%
 
 acc.sum <<- 0
 complete.step(input, 1)
+
+## part 2
+alter.commands <- function(df) {
+  nops <- df %>%
+    pull(command) %>%
+    equals('nop')
+  jmps <- df %>%
+    pull(command) %>%
+    equals('jmp')
+  df %<>%
+    add_column(nops, jmps)
+  
+  possible.fixes <- list()
+  
+  for (i in which(df$nops)) {
+    tmp <- df
+    tmp$command[i] <- 'jmp'
+    possible.fixes <- c(possible.fixes, list(tmp)) }
+  
+  for (i in which(df$jmps)) {
+    tmp <- df
+    tmp$command[i] <- 'nop'
+    possible.fixes <- c(possible.fixes, list(tmp)) }
+  
+  return(possible.fixes)
+}
+
+options <- input %>%
+  alter.commands() %>%
+  map(~ select(., 1:3))
+
+# check all the changes and see which one terminates
+for (i in seq_along(options)) {
+  acc.sum <<- 0
+  out <- complete.step(options[[i]], 1) }
