@@ -25,20 +25,35 @@ for (i in seq_len(nrow(input))) {
 }
 
 # part 2
-target <- 127#21806024
-range <- seq(1,60,1)
-for (i in range) {
-    for (j in seq_len(nrow(input))) {
-        if (j <= (nrow(input)-i)) {
+target <- 21806024
+chunk.sums <- function(input, chunk.size) {
+    
+    out <- NULL
+    for (i in seq_len(nrow(input))) {
+        if (i > chunk.size) {
             tmp <- input %>%
-                slice(j:(j+i)) %>%
+                slice((i-chunk.size+1):i) %>%
                 pull(X1) %>%
                 sum() %>%
                 equals(target)
             if (tmp) {
                 print('found!')
-                out <- slice(input, j:(j+i))
-                print(out) }
+                out <- slice(input, (i-chunk.size+1):i) }
         }
     }
+    return(out)
 }
+
+range <- seq(2,25,1)
+library(furrr)
+plan(multisession)
+contiguous <- range %>% 
+    future_map(~ chunk.sums(input, .)) %>%
+    keep(~ !is.null(.)) 
+
+stats <- contiguous %>%
+    extract2(1) %>%
+    pull(X1) %>%
+    summary() 
+
+stats[1]+stats[6]
