@@ -23,3 +23,22 @@ for (i in seq_len(nrow(input))) {
         
         if (!tmp) print(target) }
 }
+
+# part 2
+target <- 127#21806024
+range <- seq(1,60,1)
+for (i in range) {
+    for (j in seq_len(nrow(input))) {
+        if (j <= (nrow(input)-i)) {
+            tmp <- input %>%
+                slice(j:(j+i)) %>%
+                pull(X1) %>%
+                sum() %>%
+                equals(target)
+            if (tmp) {
+                print('found!')
+                out <- slice(input, j:(j+i))
+                print(out) }
+        }
+    }
+}
