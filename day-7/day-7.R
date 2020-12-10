@@ -15,8 +15,8 @@ clean.input <- function(filename) {
 }
 
 input <- clean.input('~/Desktop/advent-of-code-20/day-7/input.txt')
-test.input <- clean.input('~/Desktop/advent-of-code-20/day-7/test-input.txt')
-test.input <- clean.input('~/Desktop/advent-of-code-20/day-7/test-input-2.txt')
+input <- clean.input('~/Desktop/advent-of-code-20/day-7/test-input.txt')
+input <- clean.input('~/Desktop/advent-of-code-20/day-7/test-input-2.txt')
 
 ### part 1
 find.bags <- function(df, pattern) {
@@ -53,7 +53,7 @@ find.bags <- function(df, pattern) {
             if (!(possible.bags[i] %in% bags.glob)) {
                 bags.glob <<- c(bags.glob, possible.bags[i])
                 # print(paste0('added ', possible.bags[i], ' to current options'))
-                }
+            }
             find.bags(df, possible.bags[i]) } }
 }
 
@@ -62,114 +62,52 @@ find.bags(input, 'shiny gold')
 length(unique(bags.glob))
 
 ## part 2
-empty.bags <- test.input %>%
-    filter(str_detect(contents, fixed('no other bags'))) %>%
-    pull(outer.bag)
-
-get.contents <- function(input, bag.type, empty.bags) {
-
-    if (bag.type %in% empty.bags) return(tibble(bag = bag.type,
-                                                reps = 0,
-                                                sum = 0))
-    else {
-        reps <- input %>%
-            filter(outer.bag == bag.type) %>%
-            pull(contents) %>%
-            str_split(', ') %>%
-            extract2(1) %>%
-            str_extract_all('[0-9]') %>%
-            flatten() %>%
-            as.numeric()
-        names <- input %>%
-            filter(outer.bag == bag.type) %>%
-            pull(contents) %>%
-            str_split(', ') %>%
-            extract2(1) %>%
-            str_remove_all('[0-9]') %>%
-            str_remove_all('bags|bag') %>%
-            trimws('both')
-        return(tibble(bag = names,
-                      reps = reps,
-                      sum = 0)) }
+clean.differently <- function(filename) {
+    
+    filename %>%
+        read_delim(delim = '.\n', col_names = FALSE) %>%
+        select(-X2) %>%
+        mutate(X1 = str_split(X1, fixed('contain'))) %>%
+        mutate(X1 = map(X1, ~ tibble('bag' = .[1], 
+                                     'contents' = .[2]))) %>%
+        unnest(X1) %>%
+        mutate_at(vars(contents), ~ str_split(., ', ')) %>%
+        unnest_longer(contents) %>%
+        mutate(quantity = parse_number(contents, na = "no other")) %>%
+        mutate_at(vars(contents), ~ str_remove_all(., '[0-9]')) %>%
+        mutate_if(is.character, ~ str_remove_all(., 'bags|bag')) %>%
+        mutate_if(is.character, ~ trimws(., 'both')) 
 }
 
-sum.contents <- function(input, contents, empty.bags) {
+input <- clean.differently('~/Desktop/advent-of-code-20/day-7/input.txt')
+input <- clean.differently('~/Desktop/advent-of-code-20/day-7/test-input.txt')
+input <- clean.differently('~/Desktop/advent-of-code-20/day-7/test-input-2.txt')
+
+get.contents <- function(input, bag.type) {
     
-    browser()
-    bag.type <- contents %>%
-        str_remove_all(' bags| bag') %>%
-        str_remove_all('[0-9] ')
-    num.bags <- as.numeric(str_extract(contents, '[0-9]'))
+    curr.contents <- filter(input, bag == bag.type)
     
     # base case
-    if (bag.type %in% empty.bags) {
-        #browser()
-        print(paste0('BASE CASE: ', bag.type, ' contains no more bags'))
-        return(num.bags)
-    }
+    if (is.na(curr.contents$quantity)) return(tibble())
+    
+    curr.contents %<>%
+        mutate(contents = map2(contents, quantity, 
+                               ~ rep_len(.x, .y))) %>%
+        unnest_longer(contents) 
+    
     # recursive case
-    else {
-        contents <- get.contents(input, bag.type, empty.bags)
-    }
+    more.contents <- map_dfr(curr.contents$contents,
+                             ~ get.contents(input, .))
+    
+    bind_rows(curr.contents, more.contents)
+    
 }
 
-top.level <- test.input %>%
-    get.contents('shiny gold', empty.bags) 
-contents <- test.input %>%
-    filter(outer.bag %in% top.level$bag)
-start <- top.level %>%
-    left_join(contents, by = c('bag' = 'outer.bag')) %>%
-    mutate(contents = map(contents, ~ str_split(., ', ')[[1]])) %>%
-    mutate(contents = map(contents, ~ str_remove_all(., 'bags |bag '))) %>% 
-    unnest(contents)
-start %>%
-    mutate(content.total = map_dbl(contents, 
-                                   ~ sum.contents(test.input, ., empty.bags))) %>%
-    group_by(bag) %>%
-    mutate(sum = sum(content.total))
+out <- get.contents(input, 'shiny gold')
 
+out %>%
+    nest(data = -bag) %>%
+    mutate(to.sum = map_dbl(data, ~ nrow(.))) %>%
+    summarize_if(is.double, sum) %>%
+    pull(to.sum)
 
-###
-
-top.level <<- character()
-sum.contents <- function(input, bag.type, multiplier, empty.bags) {
-    
-    browser()
-    
-    # base case: this bag doesn't hold any bags
-    if (bag.type %in% empty.bags) {
-        #browser()
-        print(paste0('BASE CASE: ', bag.type, ' contains no more bags'))
-        bag.count <- my.bags %>%
-            filter(bag == bag.type) %>%
-            pull(reps)
-        my.bags <<- my.bags %>%
-            filter(bag != bag.type) %>%
-            mutate(sum = sum + bag.count)
-    }
-    
-    # recursive case: this bag holds more bags
-    else {
-        contents <- get.contents(input, bag.type, empty.bags)
-        if (bag.type == 'shiny gold') {
-            top.level <<- contents %>%
-                pull(bag) %>%
-                c(top.level) }
-        print(paste0(bag.type, ' contains:'))
-        print(contents$bag)
-        #my.bags <<- bind_rows(my.bags, contents)
-        for (i in seq_len(nrow(contents))) {
-            my.bags <<- contents %>%
-                slice(i) %>%
-                bind_rows(my.bags)
-            sum.contents(input, contents$bag[i], contents$reps[i], empty.bags)
-        }}
-
-}
-
-# shiny gold bags contain 1 dark olive bag, 2 vibrant plum bags.
-empty.bags <- test.input %>%
-    filter(str_detect(contents, fixed('no other bags'))) %>%
-    pull(outer.bag)
-my.bags <<- tibble()
-sum.contents(test.input, 'shiny gold', 0, empty.bags)
