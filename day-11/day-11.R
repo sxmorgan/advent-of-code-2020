@@ -43,6 +43,32 @@ setMethod('calc.adjacent',
           signature(object = 'position'), 
           function(object) {
               browser()
+              x.border <- character()
+              y.border <- character()
+              
+              if (object@x == 1) x.border <- 'left'
+              else if (object@x == object@grid.x) x.border <- 'right'
+              else x.border <- 'none'
+              
+              if (object@y == 1) y.border <- 'top'
+              else if (object@y == object@grid.y) y.border <- 'bottom'
+              else y.border <- 'none'
+              
+              if ((x.border == 'none') & (y.border == 'top')) {
+                  # this row and the -1 row (5 total)
+              }
+              else if ((x.border == 'none') & (y.border == 'bottom')) {
+                  # this row and the +1 row (5 total)
+              }
+              else if ((y.border == 'none') & (x.border == 'left')) {
+                  # this column and the +1 column (5 total)
+              }
+              else if ((y.border == 'none') & (x.border == 'right')) {
+                  # this column and the -1 column (5 total)
+              }
+              else {
+                  # count all 8 surrounding locations +/1 rows and cols
+              }
           })
 
 setGeneric('update.status', 
@@ -93,6 +119,7 @@ grid <- input %>%
 # main method
 simulate.round <- function(grid) {
     
+    browser()
     new.grid <- grid %>%
         map(~ update.status(.)) %>%
         map(~ extract2(., 1))
@@ -105,8 +132,11 @@ simulate.round <- function(grid) {
     if (!any(stability)) return(grid) 
     
     # recursive case: statuses changed
-    else simulate.round(grid)
+    else simulate.round(new.grid)
 }
 
 # part 1: final arrangement - how many are occupied?
 grid <- simulate.round(grid)
+occupied <- grid %>%
+    map_chr(~ get.status(.)) %>%
+    str_count('#')
