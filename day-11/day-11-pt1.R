@@ -3,8 +3,9 @@ library(magrittr)
 library(future)
 library(furrr)
 
-input <- read_lines('~/Desktop/advent-of-code-20/day-11/input.txt')
+# input <- read_lines('~/Desktop/advent-of-code-20/day-11/input.txt')
 # input <- read_lines('~/Desktop/advent-of-code-20/day-11/input-test.txt')
+input <- read_lines('input.txt')
 
 #### set up S4 classes and methods; http://adv-r.had.co.nz/S4.html
 setClass('position', representation(x = 'numeric', 
@@ -93,9 +94,7 @@ setGeneric('update.status',
 setMethod('update.status', signature(object = 'position'), 
           function(object) {
               
-              if (object@status == '.') 
-                  status.loc <- FALSE
-              else if ((object@status == 'L') & (object@adj.occ == 0)) {
+              if ((object@status == 'L') & (object@adj.occ == 0)) {
                   object@status <- '#'
                   status.loc <- TRUE }
               else if ((object@status == '#') & (object@adj.occ >= 4)) {
@@ -166,7 +165,12 @@ simulate.round <- function(grid) {
     stability <- map_lgl(updated, ~ extract2(., 2))
     
     # base case: no statuses changed
-    if (!any(stability)) return(grid) 
+    if (!any(stability)) {
+        occupied <- grid %>%
+            map_chr(~ get.status(.)) %>%
+            paste(., collapse = '') %>%
+            str_count('#')
+        return(occupied) }
     
     # recursive case: statuses changed
     else {
@@ -194,12 +198,6 @@ grid <- input %>%
         return(this.row)} ) %>%
     unlist() 
 
-# final grid should be returned
-last.grid <- simulate.round(grid)
-
 # final arrangement - how many are occupied?
-occupied <- last.grid %>%
-    map_chr(~ get.status(.)) %>%
-    paste(., collapse = '') %>%
-    str_count('#')
+occupied <- simulate.round(grid)
 print(occupied)
