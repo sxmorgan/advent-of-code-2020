@@ -96,9 +96,6 @@ setGeneric('update.status',
 setMethod('update.status', signature(object = 'position'), 
           function(object) {
               
-              # status.curr <- object@status
-              # adj.occ.curr <- object@adj.occ
-              
               if (object@status == '.') 
                   status.loc <- FALSE
               else if ((object@status == 'L') & (object@adj.occ == 0)) {
@@ -163,15 +160,12 @@ update.adjacent <- function(grid) {
 simulate.round <- function(grid) {
     
     # browser()
-    new.grid <- grid %>%
+    updated <- grid %>%
         update.adjacent() %>%
-        map(~ update.status(.)) %>%
-        map(~ extract2(., 1))
- 
-    stability <- grid %>%
-        update.adjacent() %>%
-        map(~ update.status(.)) %>%
-        map_lgl(~ extract2(., 2))
+        map(~ update.status(.))
+    
+    new.grid <- map(updated, ~ extract2(., 1))
+    stability <- map_lgl(updated, ~ extract2(., 2))
     
     # base case: no statuses changed
     if (!any(stability)) return(grid) 
