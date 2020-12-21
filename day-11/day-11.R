@@ -15,26 +15,22 @@ setClass('position', representation(x = 'numeric',
                                     grid.x = 'numeric',
                                     grid.y = 'numeric'))
 
-setGeneric('get.position', 
-           function(object) { standardGeneric('get.position') })
-setMethod('get.position', 
-          signature(object = 'position'), 
+setGeneric('get.coords',
+           function(object) { standardGeneric('get.coords') })
+setMethod('get.coords',
+          signature(object = 'position'),
           function(object) { c(object@x, object@y) })
 
-setGeneric('get.status', 
+setGeneric('get.status',
            function(object) { standardGeneric('get.status') })
-setMethod('get.status', 
-          signature(object = 'position'), 
+setMethod('get.status',
+          signature(object = 'position'),
           function(object) { object@status })
-
-setGeneric('get.n.adj', 
-           function(object) { standardGeneric('get.n.adj') })
-setMethod('get.n.adj', 
-          signature(object = 'position'), 
-          function(object) { object@adj.occ })
 
 setGeneric('calc.adj.idx', 
            function(object) { standardGeneric('calc.adj.idx') })
+# uses coordinates to determine which adjacent locations to check
+# returns a list where [[1]] = x range to check and [[2]] = y range to check
 setMethod('calc.adj.idx', 
           signature(object = 'position'), 
           function(object) {
@@ -93,6 +89,7 @@ setMethod('update.adj.occ',
 
 setGeneric('update.status', 
            function(object) { standardGeneric('update.status') })
+# returns a list where [[1]] = new position and [[2]] = whether status changed
 setMethod('update.status', signature(object = 'position'), 
           function(object) {
               
@@ -109,10 +106,11 @@ setMethod('update.status', signature(object = 'position'),
               return(list(object, status.loc))
 })
 
-
+# need to also have a grid object to pass to collect.adjacent() 
+# along with list of position coordinates/indices to check
 setClass('grid', representation(objects = 'list',
-                                x.pos = 'numeric',
-                                y.pos = 'numeric'))
+                                x.coords = 'numeric',
+                                y.coords = 'numeric'))
          
 
 #### MAIN METHODS
@@ -122,27 +120,28 @@ collect.adjacent <- function(grid.obj, target.idx) {
     # browser()
     list.idx <- tibble(target.idx) %>%
         mutate(list.idx = future_map2_dbl(Var1, Var2, 
-                                   ~ intersect(which(grid.obj@x.pos == .x),
-                                    which(grid.obj@y.pos == .y)))) %>%
+                                   ~ intersect(which(grid.obj@x.coords == .x),
+                                    which(grid.obj@y.coords == .y)))) %>%
         pull(list.idx)
     
     return(grid.obj@objects[list.idx])
 }
 
+# collects and counts adjacent occupancy, sets object@adj.occ accordingly
 update.adjacent <- function(grid) {
     
     # browser()
-    grid.pos <- map(grid, ~ get.position(.))
+    grid.coords <- map(grid, ~ get.coords(.))
     
     adj.idx <- grid %>%
         map(~ calc.adj.idx(.)) %>%
         map(~ expand.grid(.$x.rng, .$y.rng)) %>%
-        future_map2(grid.pos, 
+        future_map2(grid.coords, 
                     ~ filter(.x, !((Var1 == .y[1]) & (Var2 == .y[2]))))
     
     grid.obj <- new('grid', objects = grid,
-                    x.pos = map_dbl(grid.pos, ~ head(., 1)),
-                    y.pos = map_dbl(grid.pos, ~ tail(., 1)))
+                    x.coords = map_dbl(grid.coords, ~ head(., 1)),
+                    y.coords = map_dbl(grid.coords, ~ tail(., 1)))
 
     adj.obj.cts <- adj.idx %>%
         future_map(~ collect.adjacent(grid.obj, .)) %>%
@@ -158,8 +157,7 @@ update.adjacent <- function(grid) {
 
 # main method
 simulate.round <- function(grid) {
-    
-    # browser()
+
     updated <- grid %>%
         update.adjacent() %>%
         map(~ update.status(.))
