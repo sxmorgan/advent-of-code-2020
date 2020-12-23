@@ -4,7 +4,7 @@ library(magrittr)
 setwd('~/Desktop/advent-of-code-20/')
 library(here)
 
-input <- read_file(here('day-12','input.txt')) %>%
+input <- read_file(here('day-22','input.txt')) %>%
     str_split('[:]') %>%
     pluck(1) %>%
     extract(2:3) %>%
