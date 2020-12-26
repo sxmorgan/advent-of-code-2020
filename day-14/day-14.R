@@ -12,44 +12,39 @@ input <- read_delim(here('day-14','input.txt'),
     mutate_at(vars(X1), ~ str_remove_all(., fixed('['))) %>%
     mutate_at(vars(X1), ~ str_remove_all(., fixed(']')))
 
-mask <<- character()
-execution <- input$X1 %>%
-    map2(input$X2, ~ read.program(.x, .y)) %>%
-    discard(is.null) %>% 
-    set_names(map_chr(., ~ extract(., 1))) %>%
-    discard(duplicated(names(.), fromLast = TRUE)) %>%
-    map(~ .[-1]) 
-execution %>%
-    map(~ as.double(.)) %>%
-    #map(~ to.integer(.)) %>%
-    reduce(sum) 
-# 6513444000000 too high
-
-
-read.program <- function(x, y) {
+read.program <- function(X1, X2, memory) {
     
-    if (x == 'mask') {
-        mask <<- strsplit(y, split = '')[[1]]
-        return(NULL) }
+    for (i in seq_len(nrow(input))) {
+        if (X1[i] == 'mask') {
+            mask <<- strsplit(X2[i], split = '')[[1]]
+            next }
+        else {
+            address <- as.character(X1[i])
+            masked.bit <- X2[i] %>%
+                to.binary() %>%
+                as.character() %>%
+                apply.mask(mask) %>%
+                to.integer()
+            memory[[address]] <- masked.bit } }
     
-    else {
-        # browser()
-        y %>%
-            to.binary() %>%
-            as.character() %>%
-            apply.mask(mask) %>%
-            to.integer() %>%
-            c(x, .) }
+    return(memory)
+
 }
 
 to.binary <- function(num) {
+
+    # num %>%
+    #     intToBits() %>%
+    #     as.character() %>%
+    #     map_chr(~ str_sub(., 2, 2)) %>%
+    #     c(rep(0, 36-length(.))) %>%
+    #     rev()
     
     num %>%
-        intToBits() %>%
-        as.character() %>%
-        map_chr(~ str_sub(., 2, 2)) %>%
-        c(rep(0, 36-length(.))) %>%
-        rev()
+        as.numeric() %>%
+        as.binary() %>%
+        c(rep(0, 36-length(.)), .)
+        
 }
 
 apply.mask <- function(bit, mask) {
@@ -58,13 +53,17 @@ apply.mask <- function(bit, mask) {
              mask, ~ switch(.y,
                             '0' = 0,
                             '1' = 1,
-                            'X' = as.integer(.x))) 
+                            'X' = as.numeric(.x))) 
 }
 
 to.integer <- function(bit) {
-    
-    pows <- seq(35, 0, -1)
+
+    pows <- seq(length(bit)-1, 0, -1)
     bitsums <- map2_dbl(bit, pows, ~ .x * (2^.y))
     return(sum(bitsums))
 }
 
+# 6513444000000 too high
+mask <<- character()
+memory <- read.program(input$X1, input$X2, list())
+reduce(memory, sum)
